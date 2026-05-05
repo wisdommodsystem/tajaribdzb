@@ -70,7 +70,7 @@ export const authOptions: NextAuthOptions = {
     error: "/" // توجيه أخطاء تسجيل الدخول للصفحة الرئيسية
   },
   callbacks: {
-    async jwt({ token, profile }) {
+    async jwt({ token, profile }: { token: any; profile?: any }) {
       if (profile && "id" in profile) {
         token.discordId = String(profile.id);
         
@@ -115,13 +115,13 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (session && session.user && token.discordId) {
         (session.user as any).discordId = String(token.discordId);
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
+    async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
       console.log("[Auth Redirect] url:", url, "baseUrl:", baseUrl);
       // توجيه المستخدم دائماً إلى لوحة تحكم ديسكورد بعد النجاح
       if (url.startsWith("/")) return `${baseUrl}${url}`;
