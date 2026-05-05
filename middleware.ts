@@ -24,12 +24,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/wisdom") || pathname.startsWith("/discord")) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET
-    });
+    // التحقق من وجود الجلسة عبر الكوكيز مباشرة لسرعة الاستجابة ومنع الـ Loop
+    const sessionCookie = request.cookies.get("next-auth.session-token") || 
+                         request.cookies.get("__Secure-next-auth.session-token");
 
-    if (!token) {
+    if (!sessionCookie) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);

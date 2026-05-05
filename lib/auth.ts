@@ -122,9 +122,11 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }: { url: string; baseUrl: string }) {
-      console.log("[Auth Redirect] url:", url, "baseUrl:", baseUrl);
-      // توجيه المستخدم دائماً إلى لوحة تحكم ديسكورد بعد النجاح
+      // إذا كان الرابط يبدأ بـ baseUrl، نستخدمه كما هو لمنع التكرار
+      if (url.startsWith(baseUrl)) return url;
+      // إذا كان رابطاً نسبياً، نضيف الـ baseUrl
       if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // افتراضياً، نوجه لصفحة ديسكورد
       return `${baseUrl}/discord`;
     }
   }
