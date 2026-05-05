@@ -111,6 +111,44 @@ export async function getDiscordMemberProfile(
   }
 }
 
+export async function updateDiscordMemberRoles(
+  discordUserId: string,
+  newRolesList: string[]
+): Promise<boolean> {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+
+  if (!guildId || !botToken || !discordUserId) {
+    return false;
+  }
+
+  const headers = { 
+    Authorization: `Bot ${botToken}`,
+    "Content-Type": "application/json"
+  };
+
+  try {
+    const url = `https://discord.com/api/v10/guilds/${guildId}/members/${discordUserId}`;
+    console.log(`[Discord API] Patching all roles for user ${discordUserId}`);
+    
+    const response = await fetch(url, { 
+      method: "PATCH", 
+      headers,
+      body: JSON.stringify({ roles: newRolesList })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`[Discord API Error] Patch failed [${response.status}]:`, errorData);
+    }
+
+    return response.ok;
+  } catch (error) {
+    console.error(`[Discord API] Failed to patch member roles:`, error);
+    return false;
+  }
+}
+
 export async function updateDiscordMemberRole(
   discordUserId: string,
   roleId: string,
