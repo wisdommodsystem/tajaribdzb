@@ -1,0 +1,147 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    background-color: #050505;
+    color: #d4d4d4;
+    &::selection {
+      background: white;
+      color: black;
+    }
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+  }
+}
+
+* {
+  scrollbar-color: #5865f2 #0f111a;
+}
+
+.ticker-mask {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-track {
+  display: inline-flex;
+  min-width: 200%;
+  animation: ticker-scroll 35s linear infinite;
+}
+
+/* Stark Minimalist Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #333;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Nihilist Grain Effect */
+.void-grain::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.02;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  z-index: 9999;
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.online-members-mask {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.online-members-track {
+  display: inline-flex;
+  min-width: 200%;
+  animation: online-members-scroll 58s linear infinite;
+  will-change: transform;
+}
+
+@keyframes online-members-scroll {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.about-shell {
+  position: relative;
+  overflow: hidden;
+}
+
+.about-shell::before {
+  content: "";
+  position: absolute;
+  inset: -30% -20%;
+  background: radial-gradient(
+    circle,
+    rgba(88, 101, 242, 0.1) 0%,
+    rgba(212, 175, 55, 0.05) 35%,
+    transparent 70%
+  );
+  animation: about-glow 16s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.about-card {
+  position: relative;
+  backdrop-filter: blur(4px);
+  transition: transform 250ms ease, border-color 250ms ease;
+}
+
+.about-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(88, 101, 242, 0.55);
+}
+
+@keyframes about-glow {
+  0% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
