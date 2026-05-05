@@ -4,12 +4,12 @@ import { authOptions } from "@/lib/auth";
 import connectToDatabase from "@/lib/mongodb";
 import UserProfile from "@/models/UserProfile";
 import CustomRole from "@/models/CustomRole";
-import { updateDiscordMemberRole } from "@/lib/discordMember";
+import { updateDiscordMemberRoles, getDiscordMemberProfile } from "@/lib/discordMember";
 
 /**
  * تحسين واجهة برمجة التطبيقات لمزامنة الرتب:
  * 1. إضافة فحوصات أمان وتحقق من البيانات.
- * 2. معالجة الأخطاء بشكل مفصل لكل رتبة.
+ * 2. استخدام PATCH لتحديث كافة الرتب دفعة واحدة لتجنب الـ Race Conditions.
  * 3. ضمان مزامنة دقيقة بين MongoDB و Discord.
  */
 
@@ -53,57 +53,47 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { roleIds } = body;
+    const { roleIds } = body; // هذه هي الـ MongoIDs المختارة من الموقع
 
-    // التحقق من أن roleIds هي مصفوفة صالحة
     if (!Array.isArray(roleIds)) {
       return NextResponse.json({ error: "Invalid roleIds format" }, { status: 400 });
     }
 
     await connectToDatabase();
     
-    // 1. جلب البيانات الحالية للمستخدم
-    const profile = await UserProfile.findOne({ discordId: discordUserId });
-    const currentRoleIds = profile?.selectedRoles?.map((id: any) => id.toString()) || [];
-    
-    // 2. تحديد الرتب التي سيتم إضافتها والتي سيتم حذفها
-    const toAdd = roleIds.filter(id => !currentRoleIds.includes(id));
-    const toRemove = currentRoleIds.filter((id: string) => !roleIds.includes(id));
+    // 1. جلب بيانات الرتب المختارة من قاعدة البيانات للحصول على DiscordRoleIDs
+    const selectedRolesData = await CustomRole.find({ _id: { $in: roleIds } });
+    const selectedDiscordRoleIds = selectedRolesData.map(r => r.discordRoleId);
 
-    if (toAdd.length === 0 && toRemove.length === 0) {
-      return NextResponse.json({ message: "No changes detected", profile });
+    // 2. جلب كافة الرتب "القابلة للاختيار" من قاعدة البيانات
+    const allCustomRoles = await CustomRole.find({});
+    const allCustomDiscordRoleIds = allCustomRoles.map(r => r.discordRoleId);
+
+    // 3. جلب رتب المستخدم الحالية من Discord
+    const discordProfile = await getDiscordMemberProfile(discordUserId);
+    if (!discordProfile) {
+      return NextResponse.json({ error: "Could not fetch Discord profile" }, { status: 500 });
     }
 
-    // 3. جلب بيانات الرتب من Discord للتأكد من وجودها
-    const affectedIds = [...toAdd, ...toRemove];
-    const rolesData = await CustomRole.find({ _id: { $in: affectedIds } });
-    const discordRoleMap = new Map(rolesData.map(r => [r._id.toString(), r.discordRoleId]));
+    // 4. بناء قائمة الرتب النهائية:
+    // أ. الرتب التي يمتلكها المستخدم حالياً وليست من ضمن الرتب "القابلة للاختيار" (مثل رتب الإدارة، الألوان الثابتة، إلخ)
+    const permanentRoles = discordProfile.roles
+      .map(r => r.id)
+      .filter(id => !allCustomDiscordRoleIds.includes(id));
 
-    const errors: string[] = [];
+    // ب. إضافة الرتب الجديدة التي اختارها المستخدم
+    const finalRolesList = [...new Set([...permanentRoles, ...selectedDiscordRoleIds])];
 
-    // 4. المزامنة مع Discord (تسلسلي لتجنب الـ Rate Limit)
-    // نبدأ بالإضافات
-    for (const mongoId of toAdd) {
-      const discordRoleId = discordRoleMap.get(mongoId);
-      if (discordRoleId) {
-        const success = await updateDiscordMemberRole(discordUserId, discordRoleId, "add");
-        if (!success) errors.push(`Failed to add role: ${mongoId}`);
-        await new Promise(r => setTimeout(r, 300)); // تأخير بسيط
-      }
+    console.log(`[Sync] Updating all roles for ${discordUserId}. Final list size: ${finalRolesList.length}`);
+
+    // 5. تحديث كافة الرتب في Discord بطلب PATCH واحد (أكثر استقراراً)
+    const success = await updateDiscordMemberRoles(discordUserId, finalRolesList);
+
+    if (!success) {
+      return NextResponse.json({ error: "Failed to update roles in Discord" }, { status: 500 });
     }
 
-    // ثم الحذف
-    for (const mongoId of toRemove) {
-      const discordRoleId = discordRoleMap.get(mongoId);
-      if (discordRoleId) {
-        const success = await updateDiscordMemberRole(discordUserId, discordRoleId, "remove");
-        if (!success) errors.push(`Failed to remove role: ${mongoId}`);
-        await new Promise(r => setTimeout(r, 300));
-      }
-    }
-
-    // 5. تحديث MongoDB بالرتب التي نجحت مزامنتها فقط (اختياري)
-    // هنا سنقوم بتحديث الكل لضمان تطابق الواجهة، ولكن مع تسجيل الأخطاء
+    // 6. تحديث MongoDB
     const updatedProfile = await UserProfile.findOneAndUpdate(
       { discordId: discordUserId },
       { selectedRoles: roleIds },
@@ -114,9 +104,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      success: errors.length === 0,
-      profile: updatedProfile,
-      errors: errors.length > 0 ? errors : undefined
+      success: true,
+      profile: updatedProfile
     });
 
   } catch (error: any) {
